@@ -153,6 +153,12 @@ class ArenaTests(unittest.TestCase):
         result = camelot_projection(self.feed,table)['profiles']['coder']['ranking']
         self.assertEqual(reference,result)
 
+    def test_unknown_status_is_visible_but_omitted_from_compatibility_catalog(self):
+        from observatory.build import camelot_projection
+        unknown = next(row for row in self.table.rows if row.binding == 'matched' and row.modelStatus == 'unknown')
+        self.assertIsNotNone(unknown.facts)
+        self.assertNotIn(unknown.canonicalId, camelot_projection(self.feed, self.table)['models'])
+
 
 class ArenaNetworkTests(unittest.IsolatedAsyncioTestCase):
     async def test_hf_redirect_cannot_escape_to_untrusted_host(self):

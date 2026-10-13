@@ -21,6 +21,8 @@ Arena 官方分榜与模型规格的独立数据模块。每个 **模型 × 思�
 
 一行一个 `variantId`，模型 API 身份与 `inference.effort / budget / harness` 分开。支持 `unspecified / none / low / medium / high / xhigh / max / thinking / unknown`。`thinking-32k` 保存预算标签 `32k`，不伪造精确 token 数；`codex-harness` 与普通配置分开。
 
+`modelStatus` 保留本地事实的 lifecycle 状态；身份可对应不代表模型处于 active。状态未知或 context 未知的行仍有原始评测，但不会伪装成可被旧 v1 兼容 Catalog 接收的模型。
+
 客户端未指定强度，只对应 `unspecified`。它表示来源未注明额外强度，不是证明厂商的默认参数。不会取 high/max 最高分来填默认成绩，也不会自动启用思考模式。
 
 日期版本保持分开：`gpt-4.1-2025-04-14` 不自动映射到浮动 `gpt-4.1`。来源与 API ID 的大小写/空格展示形式仅在同厂商且唯一时对应；已审阅的版本标点差异见 `config/arena-aliases.json`。无法确认的记录仍显示真实榜单成绩，但 `binding=unmatched`、`apiModelId=null`，不借用别的模型规格。

@@ -74,6 +74,7 @@ class TableRow(Data):
     provider: str | None
     canonicalId: Canonical | None
     apiModelId: Id | None
+    modelStatus: Literal["unknown", "preview", "active", "deprecated", "retired"]
     binding: Literal["matched", "unmatched", "ambiguous"]
     inference: Inference
     facts: Facts | None

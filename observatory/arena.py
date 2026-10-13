@@ -146,6 +146,7 @@ def build_table(bundles, feed, aliases):
         rows.append(TableRow(variantId=sha(key), arenaName=name,
             provider=provider, canonicalId=model.identity.canonicalId if model else None,
             apiModelId=model.identity.apiModelId if model else None, binding=binding, inference=inference,
+            modelStatus=model.identity.status if model else "unknown",
             facts=facts, scores=scores))
     if not rows:
         raise ValueError("no Arena rows; refusing empty public table")

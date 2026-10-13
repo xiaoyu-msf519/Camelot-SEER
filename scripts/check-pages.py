@@ -28,9 +28,16 @@ async def check(origin):
     actual = json.loads(snapshot)
     if manifest.catalogVersion != feed.catalogVersion or manifest.generatedAt != feed.generatedAt or manifest.modelCount != len(actual["models"]):
         raise ValueError("Published Arena table and Camelot projection disagree")
+    omitted = set()
     for row in feed.rows:
         if row.binding == 'matched':
             local = actual['models'].get(row.canonicalId)
+            eligible = row.modelStatus != 'unknown' and row.facts is not None and row.facts.contextWindow is not None
+            if not eligible:
+                if local is not None:
+                    raise ValueError("Ineligible Arena identity leaked into compatibility table")
+                omitted.add(row.canonicalId)
+                continue
             if not local or local['identity']['apiModelId'] != row.apiModelId:
                 raise ValueError("Arena binding disagrees with Camelot compatibility table")
     matched = client.match("openai", "gpt-4o-2024-08-06")
@@ -44,7 +51,8 @@ async def check(origin):
     print(json.dumps({"status": "passed", "origin": origin, "catalogVersion": feed.catalogVersion,
                       "variants": len(feed.rows), "camelotModels": manifest.modelCount,
                       "matched": matched.canonicalId, "sha256Verified": True,
-                      "bindingsAgree": True, "internalEndpointsRemoved": True, "profiles": list(actual["profiles"])}))
+                      "bindingsAgree": True, "compatibilityOmissions": sorted(omitted),
+                      "internalEndpointsRemoved": True, "profiles": list(actual["profiles"])}))
 
 
 def main():
