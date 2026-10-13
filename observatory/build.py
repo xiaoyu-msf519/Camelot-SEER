@@ -1,4 +1,5 @@
 from pathlib import Path
+from html import escape
 
 from .matching import Mapping, source_match
 from .schema import Capabilities, Facts, Feed, Identity, Manifest, Model, Provenance
@@ -121,4 +122,21 @@ def publish(feed: Feed, output: Path, failures, source_issues=None):
               "richSnapshotBytes": len(json_bytes(feed.model_dump(mode="json"))), "camelotModels": compat.modelCount,
               "richHash": rich.hash, "camelotHash": compat.hash}
     atomic_write(output / "report.json", json_bytes(report))
+    index = f'''<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Model Observatory</title></head><body>
+<h1>Model Observatory</h1>
+<p>{escape(feed.catalogVersion)} | {escape(feed.generatedAt)}</p>
+<p>{len(feed.models)} models | {len(feed.evidence)} observations | {report["matchedObservations"]} matched observations</p>
+<ul>
+<li><a href="api/v1/manifest.json">Registry manifest</a></li>
+<li><a href="api/camelot-v1/manifest.json">Camelot v1 projection manifest</a></li>
+<li><a href="schema/registry.schema.json">Registry JSON Schema</a></li>
+<li><a href="schema/manifest.schema.json">Manifest JSON Schema</a></li>
+<li><a href="policy.json">Dimension scoring policy</a></li>
+<li><a href="report.json">Source health and validation report</a></li>
+<li><a href="unmatched.json">Unmatched observations</a></li>
+</ul></body></html>
+'''
+    atomic_write(output / "index.html", index.encode("utf-8"))
     return report
