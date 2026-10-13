@@ -1,0 +1,71 @@
+name: Collect and Publish Model Observatory
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 */6 * * *'
+  push:
+    branches: [main, master]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: model-observatory-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+      - run: python -m pip install -r requirements.txt
+      - run: python -m unittest discover -s tests -v
+      - name: Restore verified observations and retained snapshots
+        uses: actions/cache@v4
+        with:
+          path: |
+            .cache
+            dist/api/v1/snapshots
+            dist/api/camelot-v1/snapshots
+          key: observations-${{ github.ref_name }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            observations-${{ github.ref_name }}-
+      - name: Collect (maximum five seconds per source, then cache or seed)
+        run: python -m observatory build
+      - run: python -m observatory validate dist/api/v1
+      - name: Verify generated schema is committed
+        run: |
+          python -m observatory schema
+          git diff --exit-code -- schema/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: registry-validation-report
+          path: |
+            dist/report.json
+            dist/unmatched.json
+      - uses: actions/upload-pages-artifact@v3
+        if: github.event_name != 'pull_request'
+        with:
+          path: dist
+
+  deploy:
+    if: github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy static registry
+        id: deployment
+        uses: actions/deploy-pages@v4

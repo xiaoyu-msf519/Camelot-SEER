@@ -1,0 +1,12 @@
+{
+  "version": "sources-1",
+  "providers": ["openai", "anthropic", "google", "deepseek", "mistral", "xai", "moonshotai", "alibaba", "minimax", "zai"],
+  "sources": [
+    {"id": "models-dev", "parser": "models-dev", "url": "https://models.dev/api.json", "license": "MIT (repository); aggregated vendor facts", "attribution": "models.dev / anomalyco", "maxBytes": 12000000},
+    {"id": "aider-polyglot", "parser": "aider", "url": "https://raw.githubusercontent.com/Aider-AI/aider/main/aider/website/_data/polyglot_leaderboard.yml", "license": "Apache-2.0", "attribution": "Aider AI polyglot leaderboard", "maxBytes": 2000000},
+    {"id": "evalplus", "parser": "evalplus", "url": "https://raw.githubusercontent.com/evalplus/evalplus.github.io/master/results.json", "license": "Apache-2.0", "attribution": "EvalPlus HumanEval+ / MBPP+", "maxBytes": 2000000},
+    {"id": "arena-hard", "parser": "arena", "url": "https://raw.githubusercontent.com/lmarena/arena-hard-auto/main/leaderboard/arena_hard_leaderboard_20240731.csv", "license": "Apache-2.0", "attribution": "LMArena Arena-Hard-Auto v0.1 (historical, machine judge)", "maxBytes": 2000000},
+    {"id": "bfcl", "parser": "bfcl", "url": "https://gorilla.cs.berkeley.edu/data_overall.csv", "license": "Apache-2.0 (gorilla repository); retain source attribution", "attribution": "UC Berkeley Gorilla BFCL V4", "maxBytes": 2000000},
+    {"id": "swe-bench", "parser": "swe", "url": "https://raw.githubusercontent.com/SWE-bench/swe-bench.github.io/master/data/leaderboards.json", "license": "CC-BY-NC-4.0", "attribution": "SWE-bench official website / Verified leaderboard", "maxBytes": 8000000}
+  ]
+}

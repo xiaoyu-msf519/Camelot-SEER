@@ -1,0 +1,50 @@
+{
+  "version": "aliases-1",
+  "clientAliases": {},
+  "sourceLabels": {
+    "evalplus": {
+      "GPT 4o (Aug 2024)": "openai/gpt-4o-2024-08-06",
+      "GPT 4o Mini (July 2024)": "openai/gpt-4o-mini-2024-07-18",
+      "GPT-4-Turbo (April 2024)": "openai/gpt-4-turbo-2024-04-09",
+      "Claude Sonnet 3.5 (June 2024)": "anthropic/claude-3-5-sonnet-20240620",
+      "claude-3-opus (Mar 2024)": "anthropic/claude-3-opus-20240229",
+      "claude-3-sonnet (Mar 2024)": "anthropic/claude-3-sonnet-20240229",
+      "claude-3-haiku (Mar 2024)": "anthropic/claude-3-haiku-20240307"
+    },
+    "aider-polyglot": {
+      "gpt-5 (high)": "openai/gpt-5",
+      "gpt-5 (medium)": "openai/gpt-5",
+      "gpt-5 (low)": "openai/gpt-5",
+      "o3 (high)": "openai/o3",
+      "o3-pro (high)": "openai/o3-pro",
+      "o4-mini (high)": "openai/o4-mini",
+      "o3-mini (high)": "openai/o3-mini",
+      "o3-mini (medium)": "openai/o3-mini",
+      "o1-2024-12-17 (high)": "openai/o1-2024-12-17",
+      "claude-3-7-sonnet-20250219 (no thinking)": "anthropic/claude-3-7-sonnet-20250219",
+      "claude-3-7-sonnet-20250219 (32k thinking tokens)": "anthropic/claude-3-7-sonnet-20250219",
+      "claude-sonnet-4-20250514 (no thinking)": "anthropic/claude-sonnet-4-20250514",
+      "claude-sonnet-4-20250514 (32k thinking)": "anthropic/claude-sonnet-4-20250514",
+      "claude-opus-4-20250514 (no think)": "anthropic/claude-opus-4-20250514",
+      "claude-opus-4-20250514 (32k thinking)": "anthropic/claude-opus-4-20250514",
+      "grok-4 (high)": "xai/grok-4"
+    },
+    "bfcl": {
+      "Claude-Opus-4-5-20251101 (FC)": "anthropic/claude-opus-4-5-20251101",
+      "Claude-Sonnet-4-5-20250929 (FC)": "anthropic/claude-sonnet-4-5-20250929",
+      "Claude-Haiku-4-5-20251001 (FC)": "anthropic/claude-haiku-4-5-20251001",
+      "Gemini-3-Pro-Preview (FC)": "google/gemini-3-pro-preview",
+      "Gemini-3-Pro-Preview (Prompt)": "google/gemini-3-pro-preview",
+      "Gemini-2.5-Flash (FC)": "google/gemini-2.5-flash",
+      "Gemini-2.5-Pro (FC)": "google/gemini-2.5-pro",
+      "GPT-4o-2024-11-20 (FC)": "openai/gpt-4o-2024-11-20",
+      "GPT-4o-2024-08-06 (FC)": "openai/gpt-4o-2024-08-06",
+      "GPT-4o-2024-05-13 (FC)": "openai/gpt-4o-2024-05-13",
+      "GPT-4.1-2025-04-14 (FC)": "openai/gpt-4.1-2025-04-14",
+      "o3-2025-04-16 (Prompt)": "openai/o3-2025-04-16",
+      "Grok-4-1-fast-reasoning (FC)": "xai/grok-4-1-fast-reasoning",
+      "Grok-4-1-fast-non-reasoning (FC)": "xai/grok-4-1-fast-non-reasoning"
+    },
+    "swe-bench": {}
+  }
+}

@@ -1,0 +1,6 @@
+.venv/
+.cache/
+dist/
+__pycache__/
+*.egg-info/
+.coverage
