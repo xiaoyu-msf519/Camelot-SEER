@@ -154,7 +154,14 @@ class RegistryTests(unittest.TestCase):
 
     def test_compatibility_does_not_invent_eval_dates_or_facts(self):
         projected = camelot_projection(self.feed)
-        self.assertEqual(projected["profiles"], {})
+        self.assertEqual(set(projected["profiles"]), {"coder", "architect", "reviewer"})
+        for profile in projected["profiles"].values():
+            self.assertEqual(profile["basis"], "bootstrap")
+            self.assertEqual(profile["hardRequirements"], {})
+            self.assertTrue(profile["ranking"])
+            self.assertEqual(len(set(profile["ranking"])), len(profile["ranking"]))
+            self.assertTrue(set(profile["ranking"]) <= set(projected["models"]))
+            self.assertFalse(any(projected["models"][key]["identity"]["status"] in {"retired", "deprecated"} for key in profile["ranking"]))
         for key, model in projected["models"].items():
             self.assertGreater(model["facts"]["contextWindow"], 0)
             self.assertNotIn("displayName", model["identity"])

@@ -4,3 +4,13 @@ dist/
 __pycache__/
 *.egg-info/
 .coverage
+.env
+.env.*
+!.env.example
+id_ed25519
+id_rsa
+*.pem
+*.key
+*.p12
+*.pfx
+.tools/

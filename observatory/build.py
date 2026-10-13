@@ -7,6 +7,10 @@ from .scoring import POLICY_VERSION, policy_document, score_model
 from .sources import Bundle
 from .util import atomic_write, json_bytes, sha
 
+PROJECTION_POLICY = {"version": "camelot-profiles-1", "dimensions": {
+    "coder": "coding", "architect": "reasoning", "reviewer": "coding"},
+    "fallback": "stable canonical ID order; unknown/stale scores excluded from score ordering"}
+
 
 def build_feed(bundles: list[Bundle], mapping: Mapping, generated_at: str) -> Feed:
     models, evidence = {}, {}
@@ -55,7 +59,8 @@ def build_feed(bundles: list[Bundle], mapping: Mapping, generated_at: str) -> Fe
     if not models:
         raise ValueError("no identified models; refusing empty registry")
     version_input = {"bundles": [b.model_dump(mode="json") for b in sorted(bundles, key=lambda b: b.source.id)],
-                     "mapping": mapping.model_dump(), "policy": policy_document(), "generatedAt": generated_at}
+                     "mapping": mapping.model_dump(), "policy": policy_document(),
+                     "projectionPolicy": PROJECTION_POLICY, "generatedAt": generated_at}
     return Feed(schemaVersion=1, catalogVersion="v1-" + sha(json_bytes(version_input))[:24], generatedAt=generated_at,
                 scoringPolicyVersion=POLICY_VERSION, mappingVersion=mapping.version, sources=source_list, models=models, evidence=evidence)
 
@@ -81,11 +86,27 @@ def camelot_projection(feed: Feed):
         models[key] = {"identity": identity, "facts": model.facts.model_dump(), "evidence": observations, "provenance": model.provenance.model_dump()}
     if not models:
         raise ValueError("no models satisfy Camelot v1's non-null facts contract")
-    # No profile is silently substituted for Camelot's local role/recruitment policy.
+    profiles = {}
+    for profile_id, dimension in PROJECTION_POLICY["dimensions"].items():
+        candidates = [key for key, model in models.items() if model["identity"]["status"] in {"active", "preview"}]
+        def rank_key(key):
+            assessment = feed.models[key].dimensions[dimension]
+            score = assessment.score if assessment.recruitmentReady else None
+            return (score is None, -(assessment.coverage if score is not None else 0), -(score or 0), key)
+        ranking = sorted(candidates, key=rank_key)
+        if not ranking:
+            continue
+        source_ids = sorted({source for key in ranking for source in feed.models[key].provenance.sourceIds})
+        profiles[profile_id] = {"id": profile_id, "ranking": ranking,
+                                "policyVersion": PROJECTION_POLICY["version"], "basis": "bootstrap",
+                                "evidenceIds": [], "hardRequirements": {},
+                                "provenance": {"sourceIds": source_ids, "fetchedAt": feed.generatedAt}}
+    # Rankings remain advisory: ModelRegistry retains local Seed Profile floors,
+    # and ProviderHub intersects them with deployment-owned adapters and credentials.
     return {"schemaVersion": 1, "catalogVersion": feed.catalogVersion, "generatedAt": feed.generatedAt,
             "sources": [{"id": s.id, "kind": "aggregate" if s.id == "models-dev" else "benchmark", "uri": s.url,
                          "version": s.contentSha256, "fetchedAt": s.fetchedAt} for s in feed.sources],
-            "models": models, "profiles": {}}
+            "models": models, "profiles": profiles}
 
 
 def publish_snapshot(directory: Path, payload, generated_at, version):
@@ -111,7 +132,7 @@ def publish(feed: Feed, output: Path, failures, source_issues=None):
     schema_dir = output / "schema"
     atomic_write(schema_dir / "registry.schema.json", json_bytes(Feed.model_json_schema()))
     atomic_write(schema_dir / "manifest.schema.json", json_bytes(Manifest.model_json_schema()))
-    atomic_write(output / "policy.json", json_bytes(policy_document()))
+    atomic_write(output / "policy.json", json_bytes(policy_document() | {"camelotProjection": PROJECTION_POLICY}))
     unmatched = [{"sourceId": e.sourceId, "label": e.sourceModelLabel, "status": e.mappingStatus, "evidenceId": e.id}
                  for e in feed.evidence.values() if e.modelId is None]
     atomic_write(output / "unmatched.json", json_bytes(sorted(unmatched, key=lambda e: (e["sourceId"], e["label"], e["evidenceId"]))))

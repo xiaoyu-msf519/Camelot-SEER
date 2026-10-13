@@ -122,7 +122,7 @@ https://OWNER.github.io/REPO/unmatched.json
 https://OWNER.github.io/REPO/policy.json
 ```
 
-`api/v1` 是完整多维证据契约；`api/camelot-v1` 是现有 Camelot Registry Schema 的受限投影，适配其 4MiB、manifest 和 hash 约束。旧契约要求非空 context 与评测日期，因此无法表达的模型/证据会被省略，**不伪造字段**。投影 `profiles` 为空，不能直接替换依赖 Seed Profile 的现有招募配置；后续客户端接入应将评分作为旁路依据，保留本地 Role/Profile/Adapter 政策。
+`api/v1` 是完整多维证据契约；`api/camelot-v1` 是现有 Camelot Registry Schema 的受限投影，适配其 4MiB、manifest 和 hash 约束。旧契约要求非空 context 与评测日期，因此无法表达的模型/证据会被省略，**不伪造字段**。兼容投影提供 `coder / architect / reviewer` bootstrap 参考排序：仅新鲜、可用的对应维度可参与分数排序，其他模型按稳定身份排序；它不是总体质量榜。投影不声明硬性权限，Camelot 的 ModelRegistry 保留部署 Seed 的 Profile 下限，ProviderHub 继续要求本地 Adapter 和凭据。详细多维证据仍走完整数据面。
 
 本项目没有修改或开启 Camelot 的定时同步。示例只读客户端可验证完整接收与匹配流程：
 
@@ -146,6 +146,15 @@ python -m observatory build --offline --as-of 2026-10-13T06:00:00Z --output dist
 ```powershell
 node scripts/verify-camelot.mjs ../src
 ```
+
+线上真实 Camelot Registry 链路验收（使用 Camelot 的 tsx ESM 启动器）：
+
+```powershell
+# 在 Camelot src 目录运行，路径指向这个独立工程
+node --import tsx/esm ../model-observatory/scripts/test-camelot-link.mjs .
+```
+
+此验收实际请求 Pages，调用现有 ModelRegistry、dsh Route Adapter 和 ProviderHub，验证 hash、热更新、精确模型对应、本地 Profile 下限、无权限/无凭据拒绝和缓存重开。模型路由目录是明确的本地测试 fixture，不读取 API Key、不执行模型请求；验收结果不会声称已经完成真实 Worker 任务。
 
 `python -m observatory build --write-seed` 用于明确更新离线基线，要求全部选中来源通过在线校验。定时 CI 不自动提交 Seed；更新 Seed、映射和策略需走代码审阅。每次发布最多保留最近 7 个不可变快照；客户端请求过期版本遇到 404 时，应重新获取 manifest。原始响应缓存保留最近 20 份及当前源引用，规范化价格保留最近 64 次变化；这不是永久原始数据档案。
 
