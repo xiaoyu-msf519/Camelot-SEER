@@ -2,6 +2,8 @@
 
 独立的公开模型评测数据项目。采集公开结构化榜单，保存原始证据，计算分维度的参考分数，再通过 GitHub Actions 定时生成 GitHub Pages 静态快照。
 
+本次实际采集、干净安装、单测和 BAT 结果见 [ACCEPTANCE.md](ACCEPTANCE.md)。
+
 目录与 Camelot 的 `src` 完全独立，没有 dsh、Cordis 或 Camelot SDK 依赖，不读取 API Key、SSH 密钥或客户端配置。输出是招募参考数据；执行 Adapter、Worker 准入、权限和本地硬性要求仍由 Camelot 控制。
 
 ## 本地运行
