@@ -2,6 +2,8 @@
 
 日期：2026-10-13。代码基线：`dc6462b`。独立工程位于 `model-observatory/`，Camelot `src/` 在开发前后均为干净工作区，没有任何 upstream 文件修改。
 
+本文件记录首次离线交付基线；此后实际 Pages 部署、兼容 Profile 补齐与线上 Camelot 链路结果以 [DEPLOYMENT.md](DEPLOYMENT.md) 为准。下文“未部署、Profile 为空”等描述属于首次基线的历史限制。
+
 交付收尾另补 Pages 根目录的静态 JSON 入口页；补充后实际执行构建、校验及入口链接检查通过，不改变快照 Schema 或评分策略。
 
 ## 实际结果

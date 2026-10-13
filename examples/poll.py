@@ -20,7 +20,7 @@ async def run(args):
                                           "freshness": value.freshness, "recruitmentReady": value.recruitmentReady}
                                          for key, value in model.dimensions.items()} if model else {}}, ensure_ascii=True, indent=2), flush=True)
         if args.once:
-            return
+            return 1 if client.last_error else 2 if model is None else 0
         await asyncio.sleep(args.interval + random.uniform(0, args.interval * .1))
 
 
@@ -36,10 +36,10 @@ def main():
     if args.interval < 60:
         parser.error("poll interval must be at least 60 seconds")
     try:
-        asyncio.run(run(args))
+        return asyncio.run(run(args))
     except KeyboardInterrupt:
         pass
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

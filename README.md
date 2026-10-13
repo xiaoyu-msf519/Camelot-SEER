@@ -1,8 +1,10 @@
-# Model Observatory
+# Camelot-SEER / Model Observatory
 
 独立的公开模型评测数据项目。采集公开结构化榜单，保存原始证据，计算分维度的参考分数，再通过 GitHub Actions 定时生成 GitHub Pages 静态快照。
 
 本次实际采集、干净安装、单测和 BAT 结果见 [ACCEPTANCE.md](ACCEPTANCE.md)。
+
+线上发布、Camelot 链路与当前限制见 [DEPLOYMENT.md](DEPLOYMENT.md)。
 
 目录与 Camelot 的 `src` 完全独立，没有 dsh、Cordis 或 Camelot SDK 依赖，不读取 API Key、SSH 密钥或客户端配置。输出是招募参考数据；执行 Adapter、Worker 准入、权限和本地硬性要求仍由 Camelot 控制。
 
@@ -155,6 +157,18 @@ node --import tsx/esm ../model-observatory/scripts/test-camelot-link.mjs .
 ```
 
 此验收实际请求 Pages，调用现有 ModelRegistry、dsh Route Adapter 和 ProviderHub，验证 hash、热更新、精确模型对应、本地 Profile 下限、无权限/无凭据拒绝和缓存重开。模型路由目录是明确的本地测试 fixture，不读取 API Key、不执行模型请求；验收结果不会声称已经完成真实 Worker 任务。
+
+独立项目已发布到 [Camelot-SEER](https://github.com/xiaoyu-msf519/Camelot-SEER)，数据入口为 [GitHub Pages](https://xiaoyu-msf519.github.io/Camelot-SEER/)。本地可双击 `Test-Camelot-Link.bat`，额外启动隔离的 Cordis Core fixture，验证启动阶段后台同步及无本地 Adapter 时拒绝执行。
+
+Actions 部署结束后执行 `python -m scripts.check-pages`，实际下载线上两种快照，验证 hash、Schema、模型匹配和兼容投影与完整数据的一致性。`examples.poll --once` 在请求失败或模型未匹配时返回非零 Exit Code。
+
+在已安装 Camelot Core 的 Web profile 中可显式加载 `examples/camelot-seer.patch.yml`（在 `src` 目录）：
+
+```powershell
+pnpm dsh web --patch ../model-observatory/examples/camelot-seer.patch.yml
+```
+
+此补丁将事实 Catalog 的后台更新配置为每 6 小时一次，客户端失败保留 cache/Seed。已有 `catalogPath` 自定义本地 Catalog 时，现有 Core 会关闭远程同步；补丁尊重这一优先级，不自动清除用户配置。需要启用远端时，用户应在本地配置中明确决定是否移除 `catalogPath`。完整 `api/v1` 的多维分数尚未自动接入 Web 招募视图，不能将兼容数据同步验收描述为该功能已上线。
 
 `python -m observatory build --write-seed` 用于明确更新离线基线，要求全部选中来源通过在线校验。定时 CI 不自动提交 Seed；更新 Seed、映射和策略需走代码审阅。每次发布最多保留最近 7 个不可变快照；客户端请求过期版本遇到 404 时，应重新获取 manifest。原始响应缓存保留最近 20 份及当前源引用，规范化价格保留最近 64 次变化；这不是永久原始数据档案。
 

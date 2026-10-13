@@ -1,0 +1,5 @@
+- id: camelot-core
+  config:
+    registryUrl: https://xiaoyu-msf519.github.io/Camelot-SEER/api/camelot-v1/manifest.json
+    registryTimeoutMs: 4000
+    registryRefreshIntervalMs: 21600000
