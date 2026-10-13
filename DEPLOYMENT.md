@@ -1,5 +1,7 @@
 # Camelot-SEER 部署与 Camelot 链路验收
 
+历史记录：本文描述 v0.1 首次部署。当前 Arena v2 JSON 发布、无网页和内部端点删除以 [UPGRADE.md](UPGRADE.md) 及 [ARENA_ACCEPTANCE.md](ARENA_ACCEPTANCE.md) 为准。
+
 日期：2026-10-13。
 
 ## 已部署

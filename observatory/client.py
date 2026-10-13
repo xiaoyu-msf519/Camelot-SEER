@@ -54,6 +54,11 @@ class RegistryClient:
                         raise ValueError("cross-origin snapshot")
                     snapshot, _ = await bounded_get(session, target, 4 * 1024 * 1024)
                     feed = self.verify(manifest.model_dump(), snapshot)
+                    if self.feed is not None:
+                        incoming = datetime.fromisoformat(feed.generatedAt.replace("Z", "+00:00"))
+                        prior = datetime.fromisoformat(self.feed.generatedAt.replace("Z", "+00:00"))
+                        if incoming < prior or incoming == prior and feed.catalogVersion != self.feed.catalogVersion:
+                            raise ValueError("snapshot rollback or conflicting generation")
             atomic_write(self.cache_path, json_bytes({"publisher": sha(self.manifest_url.encode()),
                          "manifest": manifest.model_dump(), "snapshot": snapshot.decode("utf-8")}))
             self.feed, self.last_error = feed, None

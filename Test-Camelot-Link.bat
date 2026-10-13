@@ -6,13 +6,16 @@ if not defined CAM_LINK_SRC set "CAM_LINK_SRC=%~dp0..\src"
 if not exist "%CAM_LINK_SRC%\packages\camelot\provider-hub\src\registry.ts" goto missing
 set "CAM_LINK_SCRIPT=%~dp0scripts\test-camelot-link.mjs"
 set "CAM_BOOT_SCRIPT=%~dp0scripts\test-camelot-boot.mjs"
+set "CAM_TABLE_SCRIPT=%~dp0scripts\test-camelot-table.mjs"
 pushd "%CAM_LINK_SRC%"
 node --import tsx/esm "%CAM_LINK_SCRIPT%" .
 if errorlevel 1 goto failed
 node --import tsx/esm "%CAM_BOOT_SCRIPT%" .
 if errorlevel 1 goto failed
+node --import tsx/esm "%CAM_TABLE_SCRIPT%" .
+if errorlevel 1 goto failed
 popd
-echo PASS: real Pages feed, Camelot registry, routing guards and Core background sync.
+echo PASS: real Pages tables, reasoning variants, routing guards and Core background sync.
 pause
 exit /b 0
 :failed

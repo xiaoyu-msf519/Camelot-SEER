@@ -5,7 +5,9 @@ import sys
 from pathlib import Path
 
 from .build import build_feed, publish
-from .client import RegistryClient
+from .table_client import TableClient
+from .arena import build_table
+from .arena_schema import SeerTable
 from .collector import collect, save_bundle
 from .matching import Mapping, client_match
 from .schema import Feed, Manifest
@@ -32,6 +34,9 @@ def main():
     match.add_argument("provider")
     match.add_argument("api_model_id")
     match.add_argument("--directory", type=Path)
+    match.add_argument("--effort", default="unspecified")
+    match.add_argument("--budget")
+    match.add_argument("--harness")
     args = parser.parse_args()
     try:
         root = args.root.resolve()
@@ -48,7 +53,11 @@ def main():
             feed = build_feed(bundles, mapping, generated_at)
             # Revalidate assignments and all references before emitting any manifest.
             feed = Feed.model_validate(feed.model_dump(mode="json"))
-            report = publish(feed, args.output or root / "dist", failures, {b.source.id: b.issues for b in bundles if b.issues})
+            aliases = load_json(root / "config" / "arena-aliases.json")
+            table = build_table(bundles, feed, aliases["models"])
+            feed.catalogVersion = table.catalogVersion
+            report = publish(feed, table, args.output or root / "public", failures, {b.source.id: b.issues for b in bundles if b.issues})
+            atomic_write(root / ".cache" / "build-report.json", json_bytes(report))
             if args.write_seed:
                 if args.offline or any(b.source.status != "fresh" for b in bundles) or failures:
                     raise ValueError("seed refresh requires every selected source to pass live validation")
@@ -58,19 +67,22 @@ def main():
         elif args.command == "schema":
             atomic_write(root / "schema" / "registry.schema.json", json_bytes(Feed.model_json_schema()))
             atomic_write(root / "schema" / "manifest.schema.json", json_bytes(Manifest.model_json_schema()))
+            atomic_write(root / "schema" / "seer-table.schema.json", json_bytes(SeerTable.model_json_schema()))
             print("Generated closed JSON Schema (draft 2020-12)")
         else:
-            directory = args.directory if args.directory else root / "dist" / "api" / "v1"
+            directory = args.directory if args.directory else root / "public" / "api" / "v2"
             manifest = Manifest.model_validate(load_json(directory / "manifest.json"))
-            feed = RegistryClient.verify(manifest.model_dump(), (directory / manifest.snapshot).read_bytes())
+            feed = TableClient.verify(manifest.model_dump(), (directory / manifest.snapshot).read_bytes())
             if args.command == "validate":
-                print(f"SHA-256, schema and references valid: {len(feed.models)} models, {len(feed.evidence)} observations")
+                print(f"SHA-256, schema and references valid: {len(feed.rows)} Arena variants")
             else:
-                key = client_match([m.identity for m in feed.models.values()], args.provider, args.api_model_id)
-                if key is None:
-                    print("No exact match; keep the client's local model policy.")
+                client = TableClient("https://example.invalid/manifest.json", root / ".cache" / "unused-match.json")
+                client.feed = feed
+                row = client.match(args.provider, args.api_model_id, effort=args.effort, budget=args.budget, harness=args.harness)
+                if row is None:
+                    print("No exact inference variant; keep the client's local model policy.")
                     return 2
-                print(json.dumps(feed.models[key].model_dump(), ensure_ascii=True, indent=2))
+                print(json.dumps(row.model_dump(), ensure_ascii=True, indent=2))
         return 0
     except (OSError, ValueError, KeyError, TypeError) as error:
         print(f"ERROR: {error}", file=sys.stderr)

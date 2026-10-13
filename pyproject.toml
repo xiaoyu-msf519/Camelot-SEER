@@ -4,10 +4,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "camelot-model-observatory"
-version = "0.1.0"
+version = "0.2.0"
 description = "Independent, evidence-preserving public model registry for Camelot"
 requires-python = ">=3.11"
-dependencies = ["aiohttp==3.13.2", "pydantic==2.12.4", "PyYAML==6.0.3"]
+dependencies = ["aiohttp==3.13.2", "pydantic==2.12.4", "PyYAML==6.0.3", "pyarrow==21.0.0"]
 
 [project.scripts]
 model-observatory = "observatory.cli:main"

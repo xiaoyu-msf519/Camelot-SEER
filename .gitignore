@@ -1,6 +1,7 @@
 .venv/
 .cache/
 dist/
+public/
 __pycache__/
 *.egg-info/
 .coverage

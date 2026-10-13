@@ -65,7 +65,7 @@ def build_feed(bundles: list[Bundle], mapping: Mapping, generated_at: str) -> Fe
                 scoringPolicyVersion=POLICY_VERSION, mappingVersion=mapping.version, sources=source_list, models=models, evidence=evidence)
 
 
-def camelot_projection(feed: Feed):
+def camelot_projection(feed: Feed, table=None):
     models = {}
     for key, model in feed.models.items():
         if model.facts.contextWindow is None or model.identity.status == "unknown":
@@ -83,7 +83,9 @@ def camelot_projection(feed: Feed):
                                                  "harnessVersion": item.environment.harnessVersion,
                                                  "reasoningEffort": item.environment.reasoningEffort, "promptSha256": None},
                                  "sourceId": item.sourceId, "confidence": "medium"})
-        models[key] = {"identity": identity, "facts": model.facts.model_dump(), "evidence": observations, "provenance": model.provenance.model_dump()}
+        facts = model.facts.model_dump()
+        facts["pricing"] = facts["pricing"][-1:]
+        models[key] = {"identity": identity, "facts": facts, "evidence": observations, "provenance": model.provenance.model_dump()}
     if not models:
         raise ValueError("no models satisfy Camelot v1's non-null facts contract")
     profiles = {}
@@ -94,11 +96,20 @@ def camelot_projection(feed: Feed):
             score = assessment.score if assessment.recruitmentReady else None
             return (score is None, -(assessment.coverage if score is not None else 0), -(score or 0), key)
         ranking = sorted(candidates, key=rank_key)
+        if table is not None:
+            arena_dimension = {"coder": "coding", "reviewer": "coding", "architect": "math"}[profile_id]
+            eligible_rows = [row for row in table.rows if row.canonicalId in candidates
+                             and row.inference.effort == "unspecified" and row.inference.budget is None
+                             and row.inference.harness is None and arena_dimension in row.scores
+                             and row.scores[arena_dimension].freshness == "fresh"
+                             and (row.scores[arena_dimension].votes or 0) >= 100]
+            ranked = [row.canonicalId for row in sorted(eligible_rows, key=lambda row: (-row.scores[arena_dimension].value, row.variantId))]
+            ranking = list(dict.fromkeys(ranked + ranking))
         if not ranking:
             continue
         source_ids = sorted({source for key in ranking for source in feed.models[key].provenance.sourceIds})
         profiles[profile_id] = {"id": profile_id, "ranking": ranking,
-                                "policyVersion": PROJECTION_POLICY["version"], "basis": "bootstrap",
+                                "policyVersion": "arena-unspecified-bootstrap-1" if table is not None else PROJECTION_POLICY["version"], "basis": "bootstrap",
                                 "evidenceIds": [], "hardRequirements": {},
                                 "provenance": {"sourceIds": source_ids, "fetchedAt": feed.generatedAt}}
     # Rankings remain advisory: ModelRegistry retains local Seed Profile floors,
@@ -115,7 +126,7 @@ def publish_snapshot(directory: Path, payload, generated_at, version):
         raise ValueError("snapshot exceeds Camelot client 4MiB limit")
     digest = sha(raw)
     manifest = Manifest(schemaVersion=1, catalogVersion=version, generatedAt=generated_at,
-                        modelCount=len(payload["models"]), snapshot=f"snapshots/{digest}.json", hashAlgorithm="sha256", hash=digest)
+                        modelCount=len(payload.get("models", payload.get("rows", []))), snapshot=f"snapshots/{digest}.json", hashAlgorithm="sha256", hash=digest)
     atomic_write(directory / manifest.snapshot, raw)
     atomic_write(directory / "manifest.json", json_bytes(manifest.model_dump()))
     # Keep the latest seven immutable versions in a publication. Raw caches are separate.
@@ -126,38 +137,34 @@ def publish_snapshot(directory: Path, payload, generated_at, version):
     return manifest
 
 
-def publish(feed: Feed, output: Path, failures, source_issues=None):
-    rich = publish_snapshot(output / "api" / "v1", feed.model_dump(mode="json"), feed.generatedAt, feed.catalogVersion)
-    compat = publish_snapshot(output / "api" / "camelot-v1", camelot_projection(feed), feed.generatedAt, feed.catalogVersion)
-    schema_dir = output / "schema"
-    atomic_write(schema_dir / "registry.schema.json", json_bytes(Feed.model_json_schema()))
-    atomic_write(schema_dir / "manifest.schema.json", json_bytes(Manifest.model_json_schema()))
-    atomic_write(output / "policy.json", json_bytes(policy_document() | {"camelotProjection": PROJECTION_POLICY}))
-    unmatched = [{"sourceId": e.sourceId, "label": e.sourceModelLabel, "status": e.mappingStatus, "evidenceId": e.id}
-                 for e in feed.evidence.values() if e.modelId is None]
-    atomic_write(output / "unmatched.json", json_bytes(sorted(unmatched, key=lambda e: (e["sourceId"], e["label"], e["evidenceId"]))))
-    report = {"catalogVersion": feed.catalogVersion, "generatedAt": feed.generatedAt, "models": len(feed.models),
-              "observations": len(feed.evidence), "matchedObservations": sum(e.modelId is not None for e in feed.evidence.values()),
-              "sourceStatus": {s.id: s.status for s in feed.sources}, "failures": failures,
-              "sourceWarnings": source_issues or {},
-              "richSnapshotBytes": len(json_bytes(feed.model_dump(mode="json"))), "camelotModels": compat.modelCount,
-              "richHash": rich.hash, "camelotHash": compat.hash}
-    atomic_write(output / "report.json", json_bytes(report))
-    index = f'''<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Model Observatory</title></head><body>
-<h1>Model Observatory</h1>
-<p>{escape(feed.catalogVersion)} | {escape(feed.generatedAt)}</p>
-<p>{len(feed.models)} models | {len(feed.evidence)} observations | {report["matchedObservations"]} matched observations</p>
-<ul>
-<li><a href="api/v1/manifest.json">Registry manifest</a></li>
-<li><a href="api/camelot-v1/manifest.json">Camelot v1 projection manifest</a></li>
-<li><a href="schema/registry.schema.json">Registry JSON Schema</a></li>
-<li><a href="schema/manifest.schema.json">Manifest JSON Schema</a></li>
-<li><a href="policy.json">Dimension scoring policy</a></li>
-<li><a href="report.json">Source health and validation report</a></li>
-<li><a href="unmatched.json">Unmatched observations</a></li>
-</ul></body></html>
-'''
-    atomic_write(output / "index.html", index.encode("utf-8"))
-    return report
+def public_files(output: Path):
+    """Reject accidental output disclosure before the Pages artifact is uploaded."""
+    allowed = {"api/v2/manifest.json", "api/camelot-v1/manifest.json"}
+    for entry in output.rglob("*"):
+        if entry.is_symlink():
+            raise ValueError("publication cannot contain symbolic links")
+    for folder in ["api/v2/snapshots", "api/camelot-v1/snapshots"]:
+        for file in (output / folder).glob("*.json"):
+            if len(file.stem) != 64 or any(c not in "0123456789abcdef" for c in file.stem):
+                raise ValueError("invalid public snapshot name")
+            allowed.add(file.relative_to(output).as_posix())
+    actual = {p.relative_to(output).as_posix() for p in output.rglob("*") if p.is_file()}
+    if actual != allowed:
+        raise ValueError("publication contains unexpected or missing files: " + str(sorted(actual ^ allowed)))
+    return sorted(actual)
+
+
+def publish(feed: Feed, table, output: Path, failures, source_issues=None):
+    obsolete_page = output / "index.html"
+    if obsolete_page.exists() and "<title>Camelot-SEER</title>" in obsolete_page.read_text(encoding="utf-8"):
+        obsolete_page.unlink()
+    rich = publish_snapshot(output / "api" / "v2", table.model_dump(mode="json"), feed.generatedAt, feed.catalogVersion)
+    compat = publish_snapshot(output / "api" / "camelot-v1", camelot_projection(feed, table), feed.generatedAt, feed.catalogVersion)
+    public_files(output)
+    return {"catalogVersion": feed.catalogVersion, "generatedAt": feed.generatedAt,
+            "variants": len(table.rows), "matchedVariants": sum(r.binding == "matched" for r in table.rows),
+            "coverage": {category: sum(category in r.scores for r in table.rows)
+                         for category in sorted({c for r in table.rows for c in r.scores})},
+            "sourceStatus": {s.id: s.status for s in feed.sources}, "failures": failures,
+            "sourceWarnings": source_issues or {}, "tableSnapshotBytes": len(json_bytes(table.model_dump(mode="json"))),
+            "camelotModels": compat.modelCount, "tableHash": rich.hash, "camelotHash": compat.hash}

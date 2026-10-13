@@ -12,13 +12,21 @@ if errorlevel 1 goto failed
 if errorlevel 1 goto failed
 "%OBS_PYTHON%" -m observatory build --offline
 if errorlevel 1 goto failed
-"%OBS_PYTHON%" -m observatory validate dist/api/v1
+"%OBS_PYTHON%" -m observatory validate public/api/v2
+if errorlevel 1 goto failed
+where node >nul 2>nul
+if errorlevel 1 goto no_node
+node --test clients/tests/reader.test.mjs
 if errorlevel 1 goto failed
 echo.
 echo PASS: offline registry, evidence, scoring, matching and client tests.
-echo Generated data: %~dp0dist
+echo Generated table: %~dp0public
 pause
 exit /b 0
+:no_node
+echo Node.js 24 or newer is required for the Camelot reader tests.
+pause
+exit /b 1
 :no_python
 echo Python 3.11 or newer is required.
 pause

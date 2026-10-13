@@ -1,4 +1,4 @@
-name: Collect and Publish Model Observatory
+name: Collect and Publish Camelot-SEER
 
 on:
   workflow_dispatch:
@@ -32,28 +32,28 @@ jobs:
         with:
           path: |
             .cache
-            dist/api/v1/snapshots
-            dist/api/camelot-v1/snapshots
-          key: observations-${{ github.ref_name }}-${{ github.run_id }}-${{ github.run_attempt }}
+            public/api/v2/snapshots
+            public/api/camelot-v1/snapshots
+          key: arena-v2-${{ github.ref_name }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
-            observations-${{ github.ref_name }}-
+            arena-v2-${{ github.ref_name }}-
       - name: Collect (maximum five seconds per source, then cache or seed)
         run: python -m observatory build
-      - run: python -m observatory validate dist/api/v1
+      - run: python -m observatory validate public/api/v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: node --test clients/tests/reader.test.mjs
+      - name: Enforce public file allowlist
+        run: python -c "from pathlib import Path; from observatory.build import public_files; print(public_files(Path('public')))"
       - name: Verify generated schema is committed
         run: |
           python -m observatory schema
           git diff --exit-code -- schema/
-      - uses: actions/upload-artifact@v4
-        with:
-          name: registry-validation-report
-          path: |
-            dist/report.json
-            dist/unmatched.json
       - uses: actions/upload-pages-artifact@v3
         if: github.event_name != 'pull_request'
         with:
-          path: dist
+          path: public
 
   deploy:
     if: github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)

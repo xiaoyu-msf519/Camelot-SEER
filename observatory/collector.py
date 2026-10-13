@@ -2,7 +2,7 @@
 
 import asyncio
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, urljoin
 
 import aiohttp
 import yaml
@@ -26,6 +26,33 @@ async def bounded_get(session, url, max_bytes, etag=None):
                 raise ValueError("source exceeds byte limit")
             chunks.append(chunk)
         return b"".join(chunks), response.headers.get("ETag")
+
+
+async def arena_download(session, url, max_bytes, etag=None):
+    """Follow only HF's public artifact redirects; the session deadline covers every hop."""
+    for _ in range(4):
+        target = urlsplit(url)
+        if target.scheme != "https" or target.username or target.password or not (
+            target.hostname == "huggingface.co" or target.hostname.endswith(".hf.co")
+        ):
+            raise ValueError("Arena artifact redirect outside Hugging Face")
+        async with session.get(url, headers={"If-None-Match": etag} if etag else {}, allow_redirects=False) as response:
+            if response.status in {301, 302, 303, 307, 308}:
+                url = urljoin(url, response.headers["Location"])
+                etag = None
+                continue
+            if response.status == 304:
+                return None, response.headers.get("ETag")
+            response.raise_for_status()
+            if response.content_length and response.content_length > max_bytes:
+                raise ValueError("Arena source exceeds byte limit")
+            result = bytearray()
+            async for chunk in response.content.iter_chunked(65536):
+                result.extend(chunk)
+                if len(result) > max_bytes:
+                    raise ValueError("Arena source exceeds byte limit")
+            return bytes(result), response.headers.get("ETag")
+    raise ValueError("too many Arena artifact redirects")
 
 
 def validate_envelope(envelope, config):
@@ -87,7 +114,9 @@ async def collect(root: Path, config: Config, observed: str, offline=False, time
                 raise RuntimeError("offline mode")
             if urlsplit(item.url).scheme != "https":
                 raise ValueError("collector requires HTTPS")
-            raw, etag = await bounded_get(session, item.url, item.maxBytes, previous.source.upstreamVersion if previous else None)
+            fetcher = arena_download if item.parser == "arena-parquet" else bounded_get
+            async with asyncio.timeout(timeout):
+                raw, etag = await fetcher(session, item.url, item.maxBytes, previous.source.upstreamVersion if previous else None)
             if raw is None:
                 if previous is None:
                     raise ValueError("304 without a cached source")
@@ -111,7 +140,7 @@ async def collect(root: Path, config: Config, observed: str, offline=False, time
                 return previous
             return None
 
-    async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=timeout), headers={"User-Agent": "Camelot-Model-Observatory/0.1 (+public-data-only)"}, trust_env=False) as session:
+    async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=timeout), headers={"User-Agent": "Camelot-Model-Observatory/0.1 (+public-data-only)"}, trust_env=True) as session:
         results = await asyncio.gather(*(one(session, item) for item in config.sources))
     bundles = [result for result in results if result]
     if not bundles:

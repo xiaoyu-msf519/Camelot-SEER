@@ -15,15 +15,21 @@ from observatory.collector import bounded_get, collect, preserve_price_history, 
 from observatory.matching import Mapping, client_match, source_match
 from observatory.schema import Feed, Manifest
 from observatory.scoring import score_model
-from observatory.sources import Config, parse
+from observatory.sources import Config, SourceConfig, parse
 from observatory.util import json_bytes, load_json, sha
 
 ROOT = Path(__file__).resolve().parent.parent
-AS_OF = "2026-10-13T06:00:00Z"
+AS_OF = "2026-10-13T12:00:00Z"
 
 
 def seed_inputs():
     config = Config.model_validate(load_json(ROOT / "config/sources.json"))
+    parsers = {"models-dev": "models-dev", "aider-polyglot": "aider", "evalplus": "evalplus", "arena-hard": "arena", "bfcl": "bfcl", "swe-bench": "swe"}
+    config.sources = []
+    for source_id, parser in parsers.items():
+        saved = load_json(ROOT / "seed" / (source_id + ".json"))["bundle"]["source"]
+        config.sources.append(SourceConfig(id=source_id, parser=parser, url=saved["url"], license=saved["license"],
+                                           attribution=saved["attribution"], maxBytes=12000000))
     mapping = Mapping.model_validate(load_json(ROOT / "config/aliases.json"))
     bundles = [validate_envelope(load_json(ROOT / "seed" / (s.id + ".json")), s) for s in config.sources]
     return config, mapping, bundles

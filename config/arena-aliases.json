@@ -1,0 +1,10 @@
+{
+  "version": "arena-aliases-1",
+  "models": {
+    "anthropic/claude-opus-5.5": "anthropic/claude-opus-5-5",
+    "anthropic/claude-sonnet-5.5": "anthropic/claude-sonnet-5-5",
+    "anthropic/claude-haiku-5.5": "anthropic/claude-haiku-5-5",
+    "anthropic/claude-fable-5.1": "anthropic/claude-fable-5-1"
+  },
+  "basis": "Display punctuation only: Arena dotted version and models.dev API hyphenated version; no date or reasoning-mode aliasing."
+}

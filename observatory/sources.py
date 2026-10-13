@@ -10,16 +10,18 @@ import yaml
 from pydantic import Field
 
 from .schema import Data, Evidence, Facts, Identity, Source
+from .arena_schema import ArenaObservation
 from .util import json_bytes, sha
 
 
 class SourceConfig(Data):
     id: str
-    parser: Literal["models-dev", "aider", "evalplus", "arena", "bfcl", "swe"]
+    parser: Literal["models-dev", "aider", "evalplus", "arena", "bfcl", "swe", "arena-parquet"]
     url: str
     license: str
     attribution: str
     maxBytes: int = Field(ge=1, le=12000000)
+    subset: str | None = None
 
 
 class Config(Data):
@@ -38,6 +40,7 @@ class Bundle(Data):
     facts: list[FactRow]
     evidence: list[Evidence]
     issues: list[str] = Field(default_factory=list)
+    arenaRows: list[ArenaObservation] = Field(default_factory=list)
 
 
 def canonical(provider: str, api_id: str) -> str:
@@ -232,9 +235,13 @@ def parse(config: SourceConfig, raw: bytes, observed: str, providers: list[str],
                                    "checkedAt": observed, "upstreamVersion": upstream_version,
                                    "status": "fresh", "error": None})
     facts, issues = parse_facts(raw, source, providers) if config.parser == "models-dev" else ([], [])
-    evidence = PARSERS[config.parser](raw, source) if config.parser != "models-dev" else []
-    if not facts and not evidence:
+    evidence = PARSERS[config.parser](raw, source) if config.parser in PARSERS else []
+    arena_rows = []
+    if config.parser == "arena-parquet":
+        from .arena import parse_parquet
+        arena_rows = parse_parquet(raw, source, config.subset)
+    if not facts and not evidence and not arena_rows:
         raise ValueError("empty source export rejected")
     if len({item.id for item in evidence}) != len(evidence):
         raise ValueError("duplicate source observation")
-    return Bundle(source=source, facts=facts, evidence=evidence, issues=issues)
+    return Bundle(source=source, facts=facts, evidence=evidence, issues=issues, arenaRows=arena_rows)
