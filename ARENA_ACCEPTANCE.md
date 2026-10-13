@@ -36,17 +36,31 @@ Pages 只上传白名单内两种 JSON 表的 manifest 与哈希快照，无 `in
 | --- | --- |
 | `python -m pip install pyarrow==21.0.0` | 0 |
 | 原始 Arena 首次在线采集 | 9 源 fresh，0 故障 |
-| `python -m unittest discover -s tests -v` | 0，40 项通过 |
+| `python -m unittest discover -s tests -v` | 0，41 项通过 |
 | `node --test clients/tests/reader.test.mjs` | 0，3 项通过 |
 | `python -m observatory build --offline` | 0，496 行 |
 | `python -m observatory validate public/api/v2` | 0 |
 | `node --import tsx/esm ../model-observatory/scripts/test-camelot-table.mjs . --local` | 0；Camelot 本地 Ajv 和 manifest validator 通过 |
 | `node --import tsx/esm ../model-observatory/scripts/verify-camelot.mjs .` | 0；现有 Camelot validateCatalog 通过，234 模型 |
 | `git diff --check` | 0 |
+| `python -m scripts.check-pages`（线上） | 0；大表和兼容表版本/身份一致，内部端点 404 |
+| `Test-Camelot-Link.bat`（线上） | 0；ModelRegistry、Core 后台同步、v2 Node reader 均通过 |
 
 Node 读取验收实际选择 `gpt-5 / high`，Coding 原始 rating 为 `1470.9189152600536`；默认模式不能借用这一行，错误预算不匹配，缓存重开正常，执行配置字段被 Schema 拒绝。测试未读取模型 API Key、未执行 LLM 请求。
 
 网络采集严格保持每源 5 秒总截止时间，含 HF CDN 重定向。在后续一次在线检查中 Text 超时并回到已验证缓存，其余源在线通过；陈旧标记如实保留，未把降级声明为全在线成功。
+
+## 线上交付结果
+
+代码修复基线 `2129cfa`。Actions [38402419765](https://github.com/xiaoyu-msf519/Camelot-SEER/actions/runs/38402419765) 和 [38402418063](https://github.com/xiaoyu-msf519/Camelot-SEER/actions/runs/38402418063) 的 build、deploy、线上 smoke 均 success。
+
+线上实测版本 `v2-b15d70dc6be37d79217e9df2`；496 个独立配置和 234 个 v1 兼容模型。`test-camelot-link.mjs`、`test-camelot-boot.mjs`、`test-camelot-table.mjs` 均通过一键 BAT 实际访问 Pages，Exit 0。三条运行可能遇到新的定时发布，所以不同独立运行允许读取不同递增版本。
+
+首次 v2 部署后 smoke 曾误判 `mistral-large-4` 在兼容表缺失。其来源 lifecycle 状态为 unknown，本来就应从严格 v1 Catalog 省略。已在完整表增加 `modelStatus`，修正 smoke 区分该有意省略与错误绑定，并添加回归测试；没有放宽兼容表约束。
+
+主入口：[v2 manifest](https://xiaoyu-msf519.github.io/Camelot-SEER/api/v2/manifest.json)。兼容入口：[Camelot v1 manifest](https://xiaoyu-msf519.github.io/Camelot-SEER/api/camelot-v1/manifest.json)。Schema 留在源码，不单独发布。`index.html`、`report.json`、`unmatched.json`、`policy.json`、`schema/registry.schema.json`、`api/v1/manifest.json` 已逐项实测 HTTP 404。
+
+Camelot `src` 工作区和 `packages/core / packages/subagent` 均无修改。部署只变更独立 SEER 项目；AA 数据与密钥未加入源码、Seed 或公开快照。
 
 ## 限制
 
